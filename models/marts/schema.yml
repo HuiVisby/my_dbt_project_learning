@@ -1,0 +1,13 @@
+version: 2
+
+models:
+  - name: customers
+    description: "One row per customer with order summary metrics"
+    columns:
+      - name: customer_id
+        description: "Primary key"
+        tests:
+          - unique
+          - not_null
+      - name: number_of_orders
+        description: "Total number of orders placed by this customer"
