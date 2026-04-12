@@ -1,0 +1,50 @@
+name: dbt CI
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  dbt-run-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dbt-bigquery
+        run: pip install dbt-bigquery
+
+      - name: Write GCP service account key
+        run: |
+          mkdir -p ~/.dbt
+          echo '${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}' > ~/.dbt/sa-key.json
+
+      - name: Write profiles.yml
+        run: |
+          cat > ~/.dbt/profiles.yml << 'EOF'
+          my_first_project:
+            target: dev
+            outputs:
+              dev:
+                type: bigquery
+                method: service-account
+                project: ${{ secrets.GCP_PROJECT_ID }}
+                dataset: dbt_ci
+                keyfile: /home/runner/.dbt/sa-key.json
+                location: EU
+                threads: 4
+                timeout_seconds: 300
+          EOF
+
+      - name: Run dbt
+        run: dbt run
+
+      - name: Test dbt
+        run: dbt test
