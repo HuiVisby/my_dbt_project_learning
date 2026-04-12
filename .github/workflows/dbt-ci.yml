@@ -27,15 +27,18 @@ jobs:
           echo '${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}' > ~/.dbt/sa-key.json
 
       - name: Write profiles.yml
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         run: |
-          cat > ~/.dbt/profiles.yml << 'EOF'
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml << EOF
           my_first_project:
             target: dev
             outputs:
               dev:
                 type: bigquery
                 method: service-account
-                project: ${{ secrets.GCP_PROJECT_ID }}
+                project: ${GCP_PROJECT_ID}
                 dataset: dbt_ci
                 keyfile: /home/runner/.dbt/sa-key.json
                 location: EU
