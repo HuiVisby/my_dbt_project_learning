@@ -1,4 +1,9 @@
 Welcome to your new dbt project!
+# my_first_dbt_project
+
+![dbt CI](https://github.com/HuiVisby/my_dbt_project_learning/actions/workflows/dbt-ci.yml/badge.svg)
+
+A dbt + BigQuery analytics engineering project built on the jaffle_shop dataset.
 
 ### Using the starter project
 
