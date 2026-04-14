@@ -16,4 +16,4 @@ renamed as (
 
 )
 
-select * from this_table_does_not_exist
+select * from renamed
