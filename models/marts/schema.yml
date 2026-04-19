@@ -11,3 +11,20 @@ models:
           - not_null
       - name: number_of_orders
         description: "Total number of orders placed by this customer"
+  - name: orders
+    description: "One row per order — incremental model, appends new orders daily"
+    columns:
+      - name: order_id
+        description: "Primary key"
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: "Foreign key to customers"
+        tests:
+          - not_null
+      - name: status
+        description: "Order status"
+        tests:
+          - accepted_values:
+              values: ['placed', 'shipped', 'completed', 'return_pending', 'returned']
