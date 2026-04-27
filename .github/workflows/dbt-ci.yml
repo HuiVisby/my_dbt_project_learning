@@ -54,8 +54,12 @@ jobs:
           echo "Project ID length: ${#GCP_PROJECT_ID}"
           echo "SA key length: ${#GCP_SERVICE_ACCOUNT_KEY}"
 
+      - name: Install dbt packages
+        run: dbt deps
+
       - name: Run dbt
         run: dbt run
 
       - name: Test dbt
         run: dbt test
+
