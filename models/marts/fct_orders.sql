@@ -7,25 +7,12 @@
 
 with orders as (
 
-    select * from {{ ref('stg_orders') }}
+    select * from {{ ref('int_orders_with_payments') }}
 
     {% if is_incremental() %}
-
         where order_date > (select max(order_date) from {{ this }})
-
     {% endif %}
-
-),
-
-final as (
-
-    select
-        order_id,
-        customer_id,
-        order_date,
-        status
-    from orders
 
 )
 
-select * from final
+select * from orders

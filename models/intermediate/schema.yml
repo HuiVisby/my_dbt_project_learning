@@ -1,0 +1,13 @@
+version: 2
+
+models:
+  - name: int_orders_with_payments
+    description: "Orders joined with payment totals — intermediate business logic"
+    columns:
+      - name: order_id
+        description: "Primary key"
+        tests:
+          - unique
+          - not_null
+      - name: order_total_dollars
+        description: "Total payment amount for this order in dollars"
