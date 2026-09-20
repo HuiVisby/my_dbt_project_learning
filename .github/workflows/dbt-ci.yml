@@ -98,8 +98,13 @@ jobs:
           echo "      role: ACCOUNTADMIN" >> ~/.dbt/profiles.yml
           echo "      database: dbt_hui" >> ~/.dbt/profiles.yml
           echo "      warehouse: COMPUTE_WH" >> ~/.dbt/profiles.yml
-          echo "      schema: dbt_ci" >> ~/.dbt/profiles.yml
+          echo "      schema: dbt_ci" >> ~/.dbt/profiles.yml    
           echo "      threads: 4" >> ~/.dbt/profiles.yml
+      - name: Check secret lengths
+        run: |
+          echo "Account length: ${#SNOWFLAKE_ACCOUNT}"
+          echo "User length: ${#SNOWFLAKE_USER}"
+          echo "Password length: ${#SNOWFLAKE_PASSWORD}"
 
       - name: Install dbt packages
         run: dbt deps
