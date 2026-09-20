@@ -2,7 +2,7 @@ version: 2
 
 sources:
   - name: jaffle_shop
-    database: nordic-retail-intel-2025
+    database: dbt_hui
     schema: dbt_hui
     tables:
       - name: raw_customers
