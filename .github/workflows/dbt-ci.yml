@@ -1,18 +1,21 @@
 name: dbt CI
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
     branches:
       - main
 
 jobs:
-  dbt-run-and-test:
+  dbt-prod-deploy:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
-
     env:
-      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-      GCP_SERVICE_ACCOUNT_KEY: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
-
+      SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+      SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+      SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -22,44 +25,112 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install dbt-bigquery
-        run: pip install dbt-bigquery
+      - name: Install dbt-snowflake
+        run: pip install dbt-snowflake
 
-      - name: Write GCP credentials
+      - name: Write profiles.yml (prod target)
         run: |
           mkdir -p ~/.dbt
-          echo "${GCP_SERVICE_ACCOUNT_KEY}" > ~/.dbt/sa-key.json
+          echo "my_first_project:" > ~/.dbt/profiles.yml
+          echo "  target: prod" >> ~/.dbt/profiles.yml
+          echo "  outputs:" >> ~/.dbt/profiles.yml
+          echo "    prod:" >> ~/.dbt/profiles.yml
+          echo "      type: snowflake" >> ~/.dbt/profiles.yml
+          echo "      account: ${SNOWFLAKE_ACCOUNT}" >> ~/.dbt/profiles.yml
+          echo "      user: ${SNOWFLAKE_USER}" >> ~/.dbt/profiles.yml
+          echo "      password: ${SNOWFLAKE_PASSWORD}" >> ~/.dbt/profiles.yml
+          echo "      role: ACCOUNTADMIN" >> ~/.dbt/profiles.yml
+          echo "      database: dbt_hui" >> ~/.dbt/profiles.yml
+          echo "      warehouse: COMPUTE_WH" >> ~/.dbt/profiles.yml
+          echo "      schema: dbt_hui" >> ~/.dbt/profiles.yml
+          echo "      threads: 4" >> ~/.dbt/profiles.yml
+      - name: Check secret lengths
+        run: |
+          echo "Account length: ${#SNOWFLAKE_ACCOUNT}"
+          echo "User length: ${#SNOWFLAKE_USER}"
+          echo "Password length: ${#SNOWFLAKE_PASSWORD}"
 
-      - name: Write profiles.yml
+      - name: Install dbt packages
+        run: dbt deps
+
+      - name: Run dbt (full, prod)
+        run: dbt run
+
+      - name: Test dbt
+        run: dbt test
+
+      - name: Save manifest for Slim CI
+        uses: actions/cache/save@v4
+        with:
+          path: target/manifest.json
+          key: dbt-manifest-${{ github.sha }}
+
+  dbt-slim-ci:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+      SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+      SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dbt-snowflake
+        run: pip install dbt-snowflake
+
+      - name: Write profiles.yml (dev/CI target)
         run: |
           mkdir -p ~/.dbt
           echo "my_first_project:" > ~/.dbt/profiles.yml
           echo "  target: dev" >> ~/.dbt/profiles.yml
           echo "  outputs:" >> ~/.dbt/profiles.yml
           echo "    dev:" >> ~/.dbt/profiles.yml
-          echo "      type: bigquery" >> ~/.dbt/profiles.yml
-          echo "      method: service-account" >> ~/.dbt/profiles.yml
-          echo "      project: ${GCP_PROJECT_ID}" >> ~/.dbt/profiles.yml
-          echo "      dataset: dbt_ci" >> ~/.dbt/profiles.yml
-          echo "      keyfile: /home/runner/.dbt/sa-key.json" >> ~/.dbt/profiles.yml
-          echo "      location: EU" >> ~/.dbt/profiles.yml
+          echo "      type: snowflake" >> ~/.dbt/profiles.yml
+          echo "      account: ${SNOWFLAKE_ACCOUNT}" >> ~/.dbt/profiles.yml
+          echo "      user: ${SNOWFLAKE_USER}" >> ~/.dbt/profiles.yml
+          echo "      password: ${SNOWFLAKE_PASSWORD}" >> ~/.dbt/profiles.yml
+          echo "      role: ACCOUNTADMIN" >> ~/.dbt/profiles.yml
+          echo "      database: dbt_hui" >> ~/.dbt/profiles.yml
+          echo "      warehouse: COMPUTE_WH" >> ~/.dbt/profiles.yml
+          echo "      schema: dbt_ci" >> ~/.dbt/profiles.yml    
           echo "      threads: 4" >> ~/.dbt/profiles.yml
-          echo "      timeout_seconds: 300" >> ~/.dbt/profiles.yml
-
-      - name: Check profiles.yml
-        run: cat ~/.dbt/profiles.yml
-
       - name: Check secret lengths
         run: |
-          echo "Project ID length: ${#GCP_PROJECT_ID}"
-          echo "SA key length: ${#GCP_SERVICE_ACCOUNT_KEY}"
+          echo "Account length: ${#SNOWFLAKE_ACCOUNT}"
+          echo "User length: ${#SNOWFLAKE_USER}"
+          echo "Password length: ${#SNOWFLAKE_PASSWORD}"
 
       - name: Install dbt packages
         run: dbt deps
 
-      - name: Run dbt
-        run: dbt run
+      - name: Restore last prod manifest
+        uses: actions/cache/restore@v4
+        with:
+          path: state/manifest.json
+          key: dbt-manifest-
+          restore-keys: |
+            dbt-manifest-
+
+      - name: Run dbt (Slim CI if manifest found, full run otherwise)
+        run: |
+          if [ -f state/manifest.json ]; then
+            echo "Manifest found — running Slim CI (state:modified+)"
+            dbt run --select state:modified+ --state ./state
+          else
+            echo "No manifest yet — running full build"
+            dbt run
+          fi
 
       - name: Test dbt
-        run: dbt test
-
+        run: |
+          if [ -f state/manifest.json ]; then
+            dbt test --select state:modified+ --state ./state
+          else
+            dbt test
+          fi
