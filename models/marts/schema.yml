@@ -30,4 +30,12 @@ models:
         description: "Order status"
         tests:
           - accepted_values:
-              values: ['placed', 'shipped', 'completed', 'return_pending', 'returned']
+              arguments:
+                values: ['placed', 'shipped', 'completed', 'return_pending', 'returned']
+      - name: order_total_dollars
+        description: "Total order value in dollars"
+        tests:
+          - not_null
+          - accepted_range:
+              arguments:
+                min_value: 0
