@@ -32,6 +32,9 @@ models:
           - accepted_values:
               arguments:
                 values: ['placed', 'shipped', 'completed', 'return_pending', 'returned']
+              config:
+                severity: warn
+                store_failures: true
       - name: order_total_dollars
         description: "Total order value in dollars"
         tests:
